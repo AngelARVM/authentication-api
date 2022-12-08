@@ -4,6 +4,8 @@ import { PinoLogger } from 'nestjs-pino';
 import { Repository } from 'typeorm';
 import { CreateOneUserInputDTO } from './dtos/create-one-user-input.dto';
 import { User } from './entities/user.entity';
+import { UserStatus } from '../common/catalogs/user-status.enum';
+import { UserRoles } from 'src/common/catalogs/user-role.enum';
 
 @Injectable()
 export class UserService {
@@ -11,7 +13,7 @@ export class UserService {
     @InjectRepository(User)
     private userRepository: Repository<User>,
     private readonly logger: PinoLogger,
-  ) {}
+  ) { }
 
   async findOne(username: string): Promise<User | undefined> {
     return this.userRepository.findOne({ where: { username } });
@@ -38,8 +40,22 @@ export class UserService {
       );
     }
 
+    const auditStats = {
+      createdAt: new Date(),
+      updatedAt: null,
+      deletedAt: null,
+      createdBy: `${userInput.email}`,
+      updatedBy: null,
+      deletedBy: null,
+    }
+
+    const inserts = {
+      status: userInput?.status || UserStatus.REGISTERED,
+      role: userInput?.role || UserRoles.BASIC
+    }
+
     try {
-      const newUser = this.userRepository.create(userInput);
+      const newUser = this.userRepository.create({ ...userInput, ...auditStats, ...inserts });
       this.logger.info({
         event: 'user.createOne.success',
         data: { newUser },
