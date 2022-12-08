@@ -1,13 +1,6 @@
-import {
-  ConflictException,
-  HttpException,
-  HttpStatus,
-  Inject,
-  Injectable,
-} from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PinoLogger } from 'nestjs-pino';
-import { throwError } from 'rxjs';
 import { Repository } from 'typeorm';
 import { CreateOneUserInputDTO } from './dtos/create-one-user-input.dto';
 import { User } from './entities/user.entity';

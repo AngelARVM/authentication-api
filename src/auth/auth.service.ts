@@ -1,7 +1,9 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { InjectPinoLogger, Logger, PinoLogger } from 'nestjs-pino';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+import { User } from 'src/user/entities/user.entity';
 import { UserService } from 'src/user/user.service';
+import { jwtConstants } from './constants';
 
 @Injectable()
 export class AuthService {
@@ -13,7 +15,13 @@ export class AuthService {
   ) {}
 
   async validateUser(username: string, password: string) {
+    this.logger.debug({
+      event: 'validateUser.validation.input',
+      data: { username, password },
+    });
+
     const user = await this.userService.findOne(username);
+
     if (user && user.password === password) {
       const { password, ...result } = user;
       this.logger.info({
@@ -29,10 +37,26 @@ export class AuthService {
     return null;
   }
 
-  async login(user: any) {
-    const payload = { username: user.username, sub: user.userId };
+  async login(userLoginInput: User) {
+    this.logger.debug({
+      event: 'login.input',
+      data: { input: userLoginInput },
+    });
+
+    const user = await this.userService.findOne(userLoginInput.username);
+    this.logger.debug({
+      event: 'login.input',
+      data: { input: user },
+    });
+
     return {
-      access_token: this.jwtService.sign(payload),
+      access_token: this.jwtService.sign(
+        {
+          username: user.username,
+          sub: user.id,
+        },
+        { secret: 'secret' },
+      ),
     };
   }
 }
