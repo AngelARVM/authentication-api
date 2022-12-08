@@ -54,8 +54,10 @@ export class UserService {
       role: userInput?.role || UserRoles.BASIC
     }
 
+    const finalNewUserData = { ...userInput, ...auditStats, ...inserts }
+
     try {
-      const newUser = this.userRepository.create({ ...userInput, ...auditStats, ...inserts });
+      const newUser = this.userRepository.create(finalNewUserData);
       this.logger.info({
         event: 'user.createOne.success',
         data: { newUser },
