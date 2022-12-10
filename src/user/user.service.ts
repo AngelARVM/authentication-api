@@ -1,43 +1,43 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { PinoLogger } from 'nestjs-pino';
-import { Repository } from 'typeorm';
-import { CreateOneUserInputDTO } from './dtos/create-one-user-input.dto';
-import { User } from './entities/user.entity';
-import { UserStatus } from '../common/catalogs/user-status.enum';
-import { UserRoles } from 'src/common/catalogs/user-role.enum';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common'
+import { InjectRepository } from '@nestjs/typeorm'
+import { PinoLogger } from 'nestjs-pino'
+import { Repository } from 'typeorm'
+import { CreateOneUserInputDTO } from './dtos/create-one-user-input.dto'
+import { User } from './entities/user.entity'
+import { UserStatus } from '../common/catalogs/user-status.enum'
+import { UserRoles } from 'src/common/catalogs/user-role.enum'
 
 @Injectable()
 export class UserService {
-  constructor(
+  constructor (
     @InjectRepository(User)
-    private userRepository: Repository<User>,
-    private readonly logger: PinoLogger,
+    private readonly userRepository: Repository<User>,
+    private readonly logger: PinoLogger
   ) { }
 
-  async findOne(username: string): Promise<User | undefined> {
-    return this.userRepository.findOne({ where: { username } });
+  async findOne (username: string): Promise<User | undefined> {
+    return await this.userRepository.findOne({ where: { username } })
   }
 
-  async createOne(userInput: CreateOneUserInputDTO): Promise<User | undefined> {
+  async createOne (userInput: CreateOneUserInputDTO): Promise<User | undefined> {
     this.logger.debug({
       event: 'user.createOne.input',
-      data: { userInput },
-    });
+      data: { userInput }
+    })
 
     const user: User = await this.userRepository.findOne({
-      where: [{ username: userInput.username }, { email: userInput.email }],
-    });
+      where: [{ username: userInput.username }, { email: userInput.email }]
+    })
 
-    if (!!user) {
+    if (user) {
       this.logger.info({
         event: 'user.createOne.fail',
-        data: { message: 'Username or email is already taken.' },
-      });
+        data: { message: 'Username or email is already taken.' }
+      })
       throw new HttpException(
         'Username or email is already taken.',
-        HttpStatus.BAD_REQUEST,
-      );
+        HttpStatus.BAD_REQUEST
+      )
     }
 
     const auditStats = {
@@ -46,7 +46,7 @@ export class UserService {
       deletedAt: null,
       createdBy: `${userInput.email}`,
       updatedBy: null,
-      deletedBy: null,
+      deletedBy: null
     }
 
     const inserts = {
@@ -57,17 +57,17 @@ export class UserService {
     const finalNewUserData = { ...userInput, ...auditStats, ...inserts }
 
     try {
-      const newUser = this.userRepository.create(finalNewUserData);
+      const newUser = this.userRepository.create(finalNewUserData)
       this.logger.info({
         event: 'user.createOne.success',
-        data: { newUser },
-      });
-      return this.userRepository.save(newUser);
+        data: { newUser }
+      })
+      return await this.userRepository.save(newUser)
     } catch (error) {
       this.logger.error({
         event: 'user.createOne.fail',
-        data: { exception: `${error}` },
-      });
+        data: { exception: `${error}` }
+      })
     }
   }
 }
