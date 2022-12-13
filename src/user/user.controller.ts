@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
 import { CreateOneUserInputDTO } from './dtos/create-one-user-input.dto';
+import { FindAllUsersInput } from './dtos/find-all-users-input.dto';
 import { findAllUSersResponse } from './dtos/find-all-users-response.dto';
 import { FindOneUserResponse } from './dtos/find-one-user-response.dto';
 import { User } from './entities/user.entity';
@@ -9,8 +10,10 @@ import { UserService } from './user.service';
 export class UserController {
   constructor(private readonly userService: UserService) {}
   @Get('')
-  async findAll(): Promise<findAllUSersResponse> {
-    return this.userService.findAll();
+  async findAll(
+    @Body() input: FindAllUsersInput,
+  ): Promise<findAllUSersResponse> {
+    return this.userService.findAll(input);
   }
 
   @Get('/:username')
