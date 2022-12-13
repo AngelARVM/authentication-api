@@ -1,20 +1,57 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PinoLogger } from 'nestjs-pino';
-import { Repository } from 'typeorm';
+import { FindManyOptions, FindOptionsSelect, Repository } from 'typeorm';
 import { CreateOneUserInputDTO } from './dtos/create-one-user-input.dto';
 import { User } from './entities/user.entity';
+import { UserStatus } from '../common/catalogs/user-status.enum';
+import { UserRoles } from 'src/common/catalogs/user-role.enum';
+import { findAllUSersResponse } from './dtos/find-all-users-response.dto';
+import { FindAllUsersInput } from './dtos/find-all-users-input.dto';
+import { filterCreator } from 'src/common/utils/utils';
 
+const userColumns: any = [
+  'id',
+  'username',
+  'email',
+  'role',
+  'status',
+  'createdBy',
+  'updatedBy',
+  'deletedBy',
+  'createdAt',
+  'updatedAt',
+  'deletedAt',
+];
 @Injectable()
 export class UserService {
   constructor(
     @InjectRepository(User)
-    private userRepository: Repository<User>,
+    private readonly userRepository: Repository<User>,
     private readonly logger: PinoLogger,
   ) {}
 
   async findOne(username: string): Promise<User | undefined> {
-    return this.userRepository.findOne({ where: { username } });
+    return await this.userRepository.findOne({
+      where: { username },
+      select: userColumns,
+    });
+  }
+
+  async findAll(
+    input: FindAllUsersInput,
+  ): Promise<findAllUSersResponse | undefined> {
+    const { filtering, paging, sorting } = input;
+
+    const findInput: FindManyOptions<User> = {
+      where: { ...filterCreator(filtering, 'equals'), deletedAt: null },
+      ...paging,
+      order: sorting,
+    };
+
+    const result = await this.userRepository.find(findInput);
+
+    return result;
   }
 
   async createOne(userInput: CreateOneUserInputDTO): Promise<User | undefined> {
@@ -27,7 +64,7 @@ export class UserService {
       where: [{ username: userInput.username }, { email: userInput.email }],
     });
 
-    if (!!user) {
+    if (user) {
       this.logger.info({
         event: 'user.createOne.fail',
         data: { message: 'Username or email is already taken.' },
@@ -38,16 +75,61 @@ export class UserService {
       );
     }
 
+    const auditStats = {
+      createdAt: new Date(),
+      updatedAt: null,
+      deletedAt: null,
+      createdBy: `${userInput.email}`,
+      updatedBy: null,
+      deletedBy: null,
+    };
+
+    const inserts = {
+      status: userInput?.status || UserStatus.REGISTERED,
+      role: userInput?.role || UserRoles.BASIC,
+    };
+
+    const finalNewUserData = { ...userInput, ...auditStats, ...inserts };
+
     try {
-      const newUser = this.userRepository.create(userInput);
+      const newUser = this.userRepository.create(finalNewUserData);
       this.logger.info({
         event: 'user.createOne.success',
         data: { newUser },
       });
-      return this.userRepository.save(newUser);
+      return await this.userRepository.save(newUser);
     } catch (error) {
       this.logger.error({
         event: 'user.createOne.fail',
+        data: { exception: `${error}` },
+      });
+    }
+  }
+
+  async deleteOneUserHard(userId: number): Promise<string> {
+    this.logger.debug({
+      event: 'user.deleteOneHard.input',
+      data: { userId },
+    });
+    try {
+      const userExists = await this.userRepository.findOne({
+        where: { id: userId },
+      });
+
+      if (!userExists) {
+        this.logger.error({
+          event: 'user.deleteOneHard.fail',
+          data: { exception: `User with id:${userId} doesnt exists.` },
+        });
+        throw new HttpException('UserNotFound', HttpStatus.BAD_REQUEST);
+      }
+
+      await this.userRepository.delete({ id: userId });
+
+      return `User with id:${userId} was deleted.`;
+    } catch (error) {
+      this.logger.error({
+        event: 'user.deleteOneHard.fail',
         data: { exception: `${error}` },
       });
     }

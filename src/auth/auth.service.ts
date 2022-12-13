@@ -10,8 +10,8 @@ export class AuthService {
   constructor(
     @InjectPinoLogger(AuthService.name)
     private readonly logger: PinoLogger,
-    private userService: UserService,
-    private jwtService: JwtService,
+    private readonly userService: UserService,
+    private readonly jwtService: JwtService,
   ) {}
 
   async validateUser(username: string, password: string) {
