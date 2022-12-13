@@ -7,11 +7,8 @@ import { User } from './entities/user.entity';
 import { UserStatus } from '../common/catalogs/user-status.enum';
 import { UserRoles } from 'src/common/catalogs/user-role.enum';
 import { findAllUSersResponse } from './dtos/find-all-users-response.dto';
-import { FindOneUserResponse } from './dtos/find-one-user-response.dto';
 import { FindAllUsersInput } from './dtos/find-all-users-input.dto';
-import { equals } from 'class-validator';
-import { notEqual } from 'assert';
-import { isNull } from 'util';
+import { filterCreator } from 'src/common/utils/utils';
 
 const userColumns: any = [
   'id',
@@ -46,42 +43,11 @@ export class UserService {
   ): Promise<findAllUSersResponse | undefined> {
     const { filtering, paging, sorting } = input;
 
-    const a = (item, op) => {
-      const b = {};
-      filtering &&
-        Object.entries(item).forEach((field) => {
-          switch (field[0]) {
-            case 'status':
-              if (`${field[1]}` in UserStatus) {
-                b[field[0]] = UserStatus[`${field[1]}`.toUpperCase()];
-              }
-              break;
-            case 'role':
-              if (`${field[1]}` in UserRoles) {
-                b[field[0]] = UserRoles[`${field[1]}`.toUpperCase()];
-              }
-              break;
-            case 'createdAt':
-            case 'updatedAt':
-            case 'deletedAt':
-              b[field[0]] = new Date(`${field[1]}`);
-              break;
-            default:
-              b[field[0]] = {
-                [op]: field[1],
-              };
-          }
-        });
-      return b;
-    };
-
     const findInput: FindManyOptions<User> = {
-      where: { ...a(filtering, 'equals'), deletedAt: null },
+      where: { ...filterCreator(filtering, 'equals'), deletedAt: null },
       ...paging,
       order: sorting,
     };
-
-    console.log(findInput);
 
     const result = await this.userRepository.find(findInput);
 
